@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a0b10"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><title>BTC Liquidity Radar</title>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a0b10"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><link rel="preconnect" href="https://fapi.binance.com" crossorigin><link rel="preconnect" href="https://api.bybit.com" crossorigin><link rel="dns-prefetch" href="https://api.alternative.me"><title>BTC Liquidity Radar</title>
 <style>
 :root{--bg:#060912;--s1:#0b1120;--s2:#111b30;--ln:#1b2a45;--tx:#d6e2f5;--mu:#6f86aa;--te:#19e3c5;--co:#ff4d7d;--am:#ffc857}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:13px/1.45 'Segoe UI',system-ui,sans-serif}
@@ -127,7 +127,9 @@ button:active,.pill:active,.ddb:active{transform:scale(.92);box-shadow:0 0 0 5px
 .pn.act{animation:fin .3s ease-out}@keyframes fin{from{opacity:0;transform:translateY(10px)}}
 @media(max-width:1000px){main{gap:16px;padding:12px}.pn{padding:14px}.ptl{display:inline}#p-ch .hd::before{display:inline-block}
 #p-fg{order:1}#p-hm{order:2}#p-dm{order:3}#p-wl{order:4}#p-xt{order:5}#p-pr{order:6}#bt button:active{transform:scale(.94)}}
-</style></head><body>
+
+body.loading::after{content:"";position:fixed;top:2px;left:0;height:2px;width:40%;background:var(--ac);z-index:61;box-shadow:0 0 10px var(--ac);animation:ld 1.1s ease-in-out infinite}@keyframes ld{from{transform:translateX(-100%)}to{transform:translateX(260%)}}
+</style></head><body class="loading">
 <header>
 <div class="hrow"><div class="hl"><svg class="logo" viewBox="0 0 32 32" width="36" height="36"><circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="16" r="8" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".6"/><circle cx="16" cy="16" r="2.5" fill="currentColor"/><path d="M16 16L26 8" stroke="currentColor" stroke-width="2"/></svg><div class="ht"><div class="ttl">LIQUIDITY RADAR</div><div class="sub">BTCUSDT Perpetual · Binance · Bybit · Bitunix</div></div></div>
 <div class="hp"><b id="px">—</b><span id="pc"></span></div>
@@ -137,7 +139,7 @@ button:active,.pill:active,.ddb:active{transform:scale(.92);box-shadow:0 0 0 5px
 </header>
 <div id="pm"></div>
 <main id="main">
-<section class="pn" id="p-rp"><h2 class="hd"><span class="grip">⠿</span>BTC Market Report</h2><div class="bd" id="rp"></div></section>
+<section class="pn" id="p-rp"><h2 class="hd"><span class="grip">⠿</span>BTC Market Report</h2><div class="bd" id="rp"><div class="mu" style="padding:28px 0;text-align:center">Loading live market data…</div></div></section>
 <section class="pn" id="p-ch"><h2 class="hd"><span class="grip">⠿</span><span class="ptl">Price + Liquidity Map</span><span class="tb" id="ctb"></span></h2><div class="ind" id="itb"></div><div class="bd cv"><canvas id="ch"></canvas></div><small class="hint">Drag: move · Pinch: zoom (time / price) · Hold: crosshair · Drag right axis: price scale · Drag bottom axis: time zoom · Reset: back to live view</small></section>
 <section class="pn" id="p-dm"><h2 class="hd"><span class="grip">⠿</span>Order Book Ladder · all exchanges</h2><div class="bd" id="dm"></div></section>
 <section class="pn" id="p-hm"><h2 class="hd"><span class="grip">⠿</span>Liquidity Depth Map · live order books<span class="mu" id="hmi"></span></h2><div class="bd cv"><canvas id="hm"></canvas></div></section>
@@ -156,28 +158,31 @@ const WIN={live:72e4,'30m':18e5,'2h':72e5,'6h':216e5,'12h':432e5};
 const S={tm:{b:Date.now(),y:Date.now(),u:Date.now()},tf:'1h',src:'binance',k:{},px:0,pc:0,book:null,hist:[],rec:[],cvd:[],cvdL:[],tr:[],cum:0,liqs:[],lq:{L:0,S:0},lqx:{},fund:{},oi:{},oiNow:{},ls:null,bs:{},LQ:[],SW:{hi:[],lo:[]},minLiq:0,hmM:null,hmc:null,hmC:null,hmMode:'live',H:null,hh:null,db:0,
 X:{binance:{n:'Binance',on:1,ok:0,b:[],a:[],err:''},bybit:{n:'Bybit',on:1,ok:0,b:[],a:[],err:''},bitunix:{n:'Bitunix',on:1,ok:0,b:[],a:[],err:'',bm:new Map(),am:new Map(),ts:0}},
 C:{n:90,i1:null,mx:-1,my:-1,drag:0,px:0,moved:0,tool:'cur',hl:[],hi:1,lo:0,ph:1,auto:1,mhi:0,mlo:0,W:1,fol:1,xh:0},opt:{ema:1,liq:1,sw:1,wall:1,vol:1,vp:1}};
-const GJ=async u=>{const r=await fetch(u);if(!r.ok)throw new Error(r.status);return r.json()};
+const GJ=async(u,ms=7000)=>{const c=new AbortController(),t=setTimeout(()=>c.abort(),ms);try{const r=await fetch(u,{signal:c.signal});if(!r.ok)throw new Error(r.status);return await r.json()}catch(e){throw new Error(e.name==='AbortError'?'timeout':e.message)}finally{clearTimeout(t)}};
 const f=(n,d=0)=>(+n).toLocaleString('en-US',{maximumFractionDigits:d,minimumFractionDigits:d}),clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),col=v=>v>=0?'up':'dn';
 const m$=n=>n>=1e9?(n/1e9).toFixed(2)+'B':n>=1e6?(n/1e6).toFixed(2)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':f(n),ago=t=>{const s=Math.max(0,(Date.now()-t)/1e3|0);return s<60?s+'s':s<3600?(s/60|0)+'m':(s/3600|0)+'h'};
 const fit=c=>{const r=c.getBoundingClientRect(),d=devicePixelRatio||1;c.width=Math.max(1,r.width*d);c.height=Math.max(1,r.height*d);const x=c.getContext('2d');x.setTransform(d,0,0,d,0,0);return[x,r.width,r.height]};
 const nice=(r,t)=>{const s=r/t,m=10**Math.floor(Math.log10(s)),q=s/m;return(q<1.5?1:q<3?2:q<7?5:10)*m};
 /* ---------- data ---------- */
 const kb=a=>({t:a[0],o:+a[1],h:+a[2],l:+a[3],c:+a[4],v:+a[5],tb:+a[9]}),ky=a=>({t:+a[0],o:+a[1],h:+a[2],l:+a[3],c:+a[4],v:+a[5],tb:+a[5]/2});
-async function loadK(){for(const t of TFS){const n=S.src==='binance'?(await GJ(`${U.b}/fapi/v1/klines?symbol=BTCUSDT&interval=${t}&limit=300`)).map(kb):(await GJ(`${U.y}/v5/market/kline?category=linear&symbol=BTCUSDT&interval=${BY[t]}&limit=300`)).result.list.reverse().map(ky),old=S.k[t]||[];
-const mg=old.length&&old[0].t<n[0].t?old.filter(k=>k.t<n[0].t).concat(n):n;if(t===S.tf&&S.C.fol&&mg.length>old.length&&old.length)S.C.i1+=mg.length-old.length;S.k[t]=mg}
-const k=S.k[S.tf];if(!S.px)S.px=k[k.length-1].c;S.pc=S.k['1h'][S.k['1h'].length-1].o}
+async function loadTF(t){const n=S.src==='binance'?(await GJ(`${U.b}/fapi/v1/klines?symbol=BTCUSDT&interval=${t}&limit=300`)).map(kb):(await GJ(`${U.y}/v5/market/kline?category=linear&symbol=BTCUSDT&interval=${BY[t]}&limit=300`)).result.list.reverse().map(ky),old=S.k[t]||[];
+const mg=old.length&&old[0].t<n[0].t?old.filter(k=>k.t<n[0].t).concat(n):n;if(t===S.tf&&S.C.fol&&mg.length>old.length&&old.length)S.C.i1+=mg.length-old.length;S.k[t]=mg;const h=S.k['1h'];if(h)S.pc=h[h.length-1].o}
+async function loadK(first){if(first){await loadTF(S.tf);const k=S.k[S.tf];if(!S.px)S.px=k[k.length-1].c;if(!S.pc)S.pc=k[k.length-1].o;Promise.allSettled(TFS.filter(t=>t!==S.tf).map(loadTF));return}
+await Promise.allSettled(TFS.map(loadTF))}
 const P=a=>a.map(x=>[+x[0],+x[1]]);
 const BK={binance:async()=>{const d=await GJ(U.b+'/fapi/v1/depth?symbol=BTCUSDT&limit=1000');return[P(d.bids),P(d.asks)]},
 bybit:async()=>{const d=(await GJ(U.y+'/v5/market/orderbook?category=linear&symbol=BTCUSDT&limit=500')).result;return[P(d.b),P(d.a)]}};
-async function loadBooks(){await Promise.all(Object.entries(BK).map(async([k,fn])=>{const x=S.X[k];if(!x.on)return;try{const[b,a]=await fn();x.b=b.sort((p,q)=>q[0]-p[0]);x.a=a.sort((p,q)=>p[0]-q[0]);x.ok=1;x.err=''}catch(e){x.ok=0;x.err=e.message||'blocked'}}));
+async function loadBooks(){await Promise.all(Object.entries(BK).map(async([k,fn])=>{const x=S.X[k];if(!x.on||x.busy)return;x.busy=1;try{const[b,a]=await fn();x.b=b.sort((p,q)=>q[0]-p[0]);x.a=a.sort((p,q)=>p[0]-q[0]);x.ok=1;x.err=''}catch(e){x.ok=0;x.err=e.message||'blocked'}x.busy=0;merge();chips()}));
 const u=S.X.bitunix;if(u.on){const fresh=Date.now()-u.ts<15000&&u.bm.size&&u.am.size;if(fresh){u.b=[...u.bm].sort((p,q)=>q[0]-p[0]);u.a=[...u.am].sort((p,q)=>p[0]-q[0]);u.ok=1;u.err=''}else{u.ok=0;u.err=u.ts?'stale feed':'no data (ws blocked?)'}}merge();chips()}
 function merge(){const E=Object.values(S.X).filter(x=>x.on&&x.ok&&x.b.length&&x.a.length);if(!E.length){S.book=null;return}const mid=(E[0].b[0][0]+E[0].a[0][0])/2;if(!S.px)S.px=mid;const px=S.px,
 span=Math.max(1,Math.min(...E.map(x=>Math.min(px-x.b[x.b.length-1][0],x.a[x.a.length-1][0]-px)))),b=E.flatMap(x=>x.b).filter(l=>l[0]>=px-span),a=E.flatMap(x=>x.a).filter(l=>l[0]<=px+span);
 S.book={b,a,span}}
-async function loadStats(){try{S.ch24=+(await GJ(U.b+'/fapi/v1/ticker/24hr?symbol=BTCUSDT')).priceChangePercent}catch(e){}try{S.oiNow.binance=+(await GJ(U.b+'/fapi/v1/openInterest?symbol=BTCUSDT')).openInterest;
-for(const t of TFS){const h=await GJ(`${U.b}/futures/data/openInterestHist?symbol=BTCUSDT&period=${t}&limit=4`);S.oi[t]=h.length>2?(+h[h.length-1].sumOpenInterest/+h[h.length-3].sumOpenInterest-1)*100:0}
-S.ls=+(await GJ(U.b+'/futures/data/globalLongShortAccountRatio?symbol=BTCUSDT&period=1h&limit=1'))[0].longShortRatio}catch(e){console.warn(e)}
-try{const d=(await GJ(U.y+'/v5/market/tickers?category=linear&symbol=BTCUSDT')).result.list[0];S.fund.bybit=+d.fundingRate;S.oiNow.bybit=+d.openInterest;if(S.ch24==null||isNaN(S.ch24))S.ch24=+d.price24hPcnt*100}catch(e){}}
+async function loadStats(){const T=f=>f().catch(()=>{});await Promise.all([
+T(async()=>{S.ch24=+(await GJ(U.b+'/fapi/v1/ticker/24hr?symbol=BTCUSDT')).priceChangePercent}),
+T(async()=>{S.oiNow.binance=+(await GJ(U.b+'/fapi/v1/openInterest?symbol=BTCUSDT')).openInterest}),
+...TFS.map(t=>T(async()=>{const h=await GJ(`${U.b}/futures/data/openInterestHist?symbol=BTCUSDT&period=${t}&limit=4`);S.oi[t]=h.length>2?(+h[h.length-1].sumOpenInterest/+h[h.length-3].sumOpenInterest-1)*100:0})),
+T(async()=>{S.ls=+(await GJ(U.b+'/futures/data/globalLongShortAccountRatio?symbol=BTCUSDT&period=1h&limit=1'))[0].longShortRatio}),
+T(async()=>{const d=(await GJ(U.y+'/v5/market/tickers?category=linear&symbol=BTCUSDT')).result.list[0];S.fund.bybit=+d.fundingRate;S.oiNow.bybit=+d.openInterest;if(S.ch24==null||isNaN(S.ch24))S.ch24=+d.price24hPcnt*100})])}
 const addTr=(x,t,s,q)=>{S.tr.push({x,t,s,q});S.cum+=s};
 let WB;function wsB(){const w=WB=new WebSocket('wss://fstream.binance.com/stream?streams=btcusdt@aggTrade/btcusdt@markPrice@1s');w.onclose=()=>setTimeout(wsB,2500);
 w.onmessage=e=>{S.tm.b=Date.now();const d=JSON.parse(e.data).data;if(d.e==='aggTrade'){const q=+d.q;S.px=+d.p;addTr('binance',d.T,d.m?-q:q,q)}else if(d.e==='markPrice')S.fund.binance=+d.r;}}
@@ -318,7 +323,7 @@ const F=Object.values(S.fund),fu=F.length?F.reduce((a,b)=>a+b,0)/F.length:0,oi=O
 $('#pr').innerHTML=`<div class="row"><span>CVD · recent trades</span><b class="${col(cx.d)}">${cx.d>0?'+':''}${f(cx.d,2)} BTC</b></div><div class="row"><span>OI Δ (${S.tf}, Binance)</span><b class="${col(S.oi[S.tf]||0)}">${(S.oi[S.tf]||0).toFixed(2)}%</b></div>`;
 const top=s=>S.LQ.filter(z=>z.s===s).sort((a,b)=>b.w-a.w).slice(0,3).sort((a,b)=>Math.abs(a.p-px)-Math.abs(b.p-px)),pp=p=>((p/px-1)*100).toFixed(2)+'%';
 const blk=(ti,c,a)=>`<div><small class="sh">${ti}</small>${a.map(z=>`<div class="row"><span class="${c}">$${f(z.p)}${z.n>1?' ×'+z.n:''}</span><span class="mu">${pp(z.p)}</span></div>`).join('')||'<div class="mu">—</div>'}</div>`;
-$('#lv').innerHTML='<div class="lvg">'+blk('Buy-side liquidity above (BSL)','dn',S.SW.hi)+blk('Est. short-liq clusters above','',top('S'))+blk('Est. long-liq clusters below','',top('L'))+blk('Sell-side liquidity below (SSL)','up',S.SW.lo)+'</div>';tick(avg);const fk=S.fgT+'|'+(S.fgErr||'');if(S.fgK!==fk){S.fgK=fk;$('#fg').innerHTML=fgHTML()}}
+$('#lv').innerHTML='<div class="lvg">'+blk('Buy-side liquidity above (BSL)','dn',S.SW.hi)+blk('Est. short-liq clusters above','',top('S'))+blk('Est. long-liq clusters below','',top('L'))+blk('Sell-side liquidity below (SSL)','up',S.SW.lo)+'</div>';tick(avg);const fk=S.fgT+'|'+(S.fgErr||'');if(S.fgK!==fk){S.fgK=fk;$('#fg').innerHTML=fgHTML()}if(S.book)document.body.classList.remove('loading')}
 /* ---------- UI: header, layout, drag/resize ---------- */
 const mk=(t,fn,on,p)=>{const b=document.createElement('button');b.textContent=t;if(on)b.className='on';b.onclick=()=>fn(b);(p||$('#ctb')).append(b);return b};
 function chips(){$('#ex').innerHTML='';Object.entries(S.X).forEach(([k,x])=>{const b=document.createElement('span');b.className='pill '+(x.on?(x.ok?'pos':'bad'):'');b.textContent=(x.on?'● ':'○ ')+x.n;b.title=x.err||(x.ok?'live':'');b.onclick=()=>{x.on=x.on?0:1;if(!x.on)x.ok=0;merge();chips()};$('#ex').append(b)})}
@@ -344,7 +349,7 @@ function dd(opts,cur,onPick){const w=document.createElement('span');w.className=
 const paint=()=>{b.innerHTML=`${opts.find(o=>o[0]===cur)[1]}<i>▾</i>`;m.innerHTML='';opts.forEach(([k,l])=>{const it=document.createElement('button');it.className='ddi'+(k===cur?' on':'');it.textContent=l;it.onclick=e=>{e.stopPropagation();cur=k;paint();m.classList.remove('open');onPick(k)};m.append(it)})};
 b.onclick=e=>{e.stopPropagation();document.querySelectorAll('.ddm.open').forEach(x=>x!==m&&x.classList.remove('open'));m.classList.toggle('open')};w.set=k=>{cur=k;paint()};paint();w.append(b,m);return w}
 document.addEventListener('click',()=>document.querySelectorAll('.ddm.open').forEach(x=>x.classList.remove('open')));
-function chartUI(){S.ddSrc=dd([['binance','Binance'],['bybit','Bybit']],S.src,async k=>{S.src=k;S.k={};S.C.i1=null;S.C.auto=1;try{await loadK()}catch(e){}draw()});
+function chartUI(){S.ddSrc=dd([['binance','Binance'],['bybit','Bybit']],S.src,async k=>{S.src=k;S.k={};S.C.i1=null;S.C.auto=1;try{await loadK(true)}catch(e){}draw()});
 $('#ctb').append(dd([['15m','15m'],['1h','1H'],['4h','4H']],S.tf,k=>{S.tf=k;S.C.i1=null;S.C.auto=1;draw()}),S.ddSrc);
 const rs=document.createElement('button');rs.className='gold';rs.textContent='Reset';rs.title='Reset zoom, position and price scale';rs.onclick=()=>{S.C.n=90;S.C.i1=null;S.C.auto=1;dCH()};$('#ctb').append(rs);
 [['EMA','ema'],['Liq','liq'],['Sweep','sw'],['Wall','wall'],['VP','vp'],['Vol','vol']].forEach(([n,k])=>{const b=document.createElement('button');b.textContent=n;b.className=S.opt[k]?'on':'';b.onclick=()=>{S.opt[k]^=1;b.className=S.opt[k]?'on':'';dCH()};$('#itb').append(b)});
@@ -391,9 +396,9 @@ function tabs(){[['report','📊','Report'],['chart','📈','Chart'],['market','
 async function loadTrades(){try{const[a,b]=await Promise.all([GJ(U.b+'/fapi/v1/aggTrades?symbol=BTCUSDT&limit=1000').catch(()=>[]),GJ(U.y+'/v5/market/recent-trade?category=linear&symbol=BTCUSDT&limit=1000').catch(()=>null)]),ex=[];
 a.forEach(t=>{const q=+t.q;ex.push({x:'binance',t:t.T,s:t.m?-q:q,q})});if(b&&b.result)b.result.list.forEach(t=>{const q=+t.size;ex.push({x:'bybit',t:+t.time,s:t.side==='Buy'?q:-q,q})});
 S.tr=ex.concat(S.tr).sort((p,q)=>p.t-q.t)}catch(e){}}
-(async()=>{setup();chips();chartUI();buildLUT();tabs();
-try{await loadK()}catch(e){try{S.src='bybit';S.ddSrc&&S.ddSrc.set('bybit');await loadK()}catch(e2){$('#px').textContent='⚠ Binance/Bybit unreachable — check internet/VPN';return}}
-wsB();wsY();wsU();await Promise.allSettled([loadBooks(),loadStats(),loadTrades(),loadFG()]);draw();
+(async()=>{setTimeout(()=>document.body.classList.remove('loading'),12000);setup();chips();chartUI();buildLUT();tabs();
+try{await loadK(true)}catch(e){try{S.src='bybit';S.ddSrc&&S.ddSrc.set('bybit');await loadK(true)}catch(e2){$('#px').textContent='⚠ Binance/Bybit unreachable — check internet/VPN';return}}
+wsB();wsY();wsU();draw();loadBooks();loadStats();loadTrades();loadFG();
 setInterval(()=>{if(!document.hidden)loadBooks()},MOB?5000:3000);setInterval(()=>loadK().catch(()=>{}),30000);setInterval(loadStats,30000);
 setInterval(()=>{if(!document.hidden)draw()},MOB?1000:500);setInterval(loadFG,18e5);
 const refreshNow=()=>{loadBooks();loadK().catch(()=>{});loadStats();[[WB,'b'],[WY,'y'],[WU,'u']].forEach(([w,k])=>{if(w&&Date.now()-S.tm[k]>15000)try{w.close()}catch(e){}})};
