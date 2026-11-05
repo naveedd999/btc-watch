@@ -129,12 +129,18 @@ button:active,.pill:active,.ddb:active{transform:scale(.92);box-shadow:0 0 0 5px
 #p-fg{order:1}#p-hm{order:2}#p-dm{order:3}#p-wl{order:4}#p-xt{order:5}#p-pr{order:6}#bt button:active{transform:scale(.94)}}
 
 body.loading::after{content:"";position:fixed;top:2px;left:0;height:2px;width:40%;background:var(--ac);z-index:61;box-shadow:0 0 10px var(--ac);animation:ld 1.1s ease-in-out infinite}@keyframes ld{from{transform:translateX(-100%)}to{transform:translateX(260%)}}
+
+@media(max-width:1000px){
+#ex .pill{min-height:32px;display:inline-flex;align-items:center;padding:3px 12px}
+.hd,.ti small,.sh,.t th{font-size:10.5px}.ti{padding:7px 10px}.ti b{font-size:13.5px}.hrow{padding-bottom:6px}
+.ind{gap:4px}.ind button{padding:2px 8px;font-size:11px;min-height:30px}
+}
 </style></head><body class="loading">
 <header>
 <div class="hrow"><div class="hl"><svg class="logo" viewBox="0 0 32 32" width="36" height="36"><circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="16" r="8" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".6"/><circle cx="16" cy="16" r="2.5" fill="currentColor"/><path d="M16 16L26 8" stroke="currentColor" stroke-width="2"/></svg><div class="ht"><div class="ttl">LIQUIDITY RADAR</div><div class="sub">BTCUSDT Perpetual · Binance · Bybit · Bitunix</div></div></div>
 <div class="hp"><b id="px">—</b><span id="pc"></span></div>
 <div class="hr"><span id="ex"></span><span class="lvb"><i></i>LIVE <b id="upd">—</b></span><span id="ut"></span></div></div>
-<div id="tk"><div class="ti"><small>Funding</small><b id="tf">—</b></div><div class="ti"><small>Open interest</small><b id="to">—</b></div><div class="ti"><small>Long / Short</small><b id="tl">—</b></div><div class="ti"><small>Book imbalance</small><b id="ti">—</b></div><div class="ti"><small>Bias score</small><b id="tb2">—</b></div><div class="ti"><small>POC</small><b id="tp">—</b></div></div>
+<div id="tk"><div class="ti"><small>Funding</small><b id="tf">—</b></div><div class="ti"><small>Open interest</small><b id="to">—</b></div><div class="ti"><small>Long / Short</small><b id="tl">—</b></div><div class="ti"><small>Imbalance</small><b id="ti">—</b></div><div class="ti"><small>Bias score</small><b id="tb2">—</b></div><div class="ti"><small>POC</small><b id="tp">—</b></div></div>
 <nav class="hc" id="nav"></nav>
 </header>
 <div id="pm"></div>
@@ -173,7 +179,7 @@ const P=a=>a.map(x=>[+x[0],+x[1]]);
 const BK={binance:async()=>{const d=await GJ(U.b+'/fapi/v1/depth?symbol=BTCUSDT&limit=1000');return[P(d.bids),P(d.asks)]},
 bybit:async()=>{const d=(await GJ(U.y+'/v5/market/orderbook?category=linear&symbol=BTCUSDT&limit=500')).result;return[P(d.b),P(d.a)]}};
 async function loadBooks(){await Promise.all(Object.entries(BK).map(async([k,fn])=>{const x=S.X[k];if(!x.on||x.busy)return;x.busy=1;try{const[b,a]=await fn();x.b=b.sort((p,q)=>q[0]-p[0]);x.a=a.sort((p,q)=>p[0]-q[0]);x.ok=1;x.err=''}catch(e){x.ok=0;x.err=e.message||'blocked'}x.busy=0;merge();chips()}));
-const u=S.X.bitunix;if(u.on){const fresh=Date.now()-u.ts<15000&&u.bm.size&&u.am.size;if(fresh){u.b=[...u.bm].sort((p,q)=>q[0]-p[0]);u.a=[...u.am].sort((p,q)=>p[0]-q[0]);u.ok=1;u.err=''}else{u.ok=0;u.err=u.ts?'stale feed':'no data (ws blocked?)'}}merge();chips()}
+const u=S.X.bitunix;if(u.on){const fresh=Date.now()-u.ts<15000&&u.bm.size&&u.am.size;if(fresh){u.b=[...u.bm].sort((p,q)=>q[0]-p[0]);u.a=[...u.am].sort((p,q)=>p[0]-q[0]);u.ok=1;u.err=''}else{u.ok=0;u.err=u.ts?'stale':(performance.now()<9000?'connecting':'no data')}}merge();chips()}
 function merge(){const E=Object.values(S.X).filter(x=>x.on&&x.ok&&x.b.length&&x.a.length);if(!E.length){S.book=null;return}const mid=(E[0].b[0][0]+E[0].a[0][0])/2;if(!S.px)S.px=mid;const px=S.px,
 span=Math.max(1,Math.min(...E.map(x=>Math.min(px-x.b[x.b.length-1][0],x.a[x.a.length-1][0]-px)))),b=E.flatMap(x=>x.b).filter(l=>l[0]>=px-span),a=E.flatMap(x=>x.a).filter(l=>l[0]<=px+span);
 S.book={b,a,span}}
@@ -191,7 +197,7 @@ w.onmessage=e=>{S.tm.y=Date.now();const m=JSON.parse(e.data);if(!m.topic)return;
 else if(D){if(D.fundingRate)S.fund.bybit=+D.fundingRate;if(D.openInterest)S.oiNow.bybit=+D.openInterest}}}
 function wsU(){const x=S.X.bitunix,w=WU=new WebSocket('wss://fapi.bitunix.com/public/');w.onopen=()=>w.send(JSON.stringify({op:'subscribe',args:[{symbol:'BTCUSDT',ch:'depth_books'}]}));w.onclose=()=>setTimeout(wsU,3000);
 w.onmessage=e=>{S.tm.u=Date.now();let m;try{m=JSON.parse(e.data)}catch(_){return}if(!m.ch||!m.data)return;const d=m.data,ap=(mp,a)=>(a||[]).forEach(l=>{const p=+l[0],q=+l[1];q>0?mp.set(p,q):mp.delete(p)});
-if((d.b||[]).length>200||(d.a||[]).length>200){x.bm.clear();x.am.clear()}ap(x.bm,d.b);ap(x.am,d.a);x.ts=Date.now();
+if((d.b||[]).length>200||(d.a||[]).length>200){x.bm.clear();x.am.clear()}ap(x.bm,d.b);ap(x.am,d.a);x.ts=Date.now();if(!x.first){x.first=1;setTimeout(loadBooks,60)}
 if(x.bm.size&&x.am.size){const bb=Math.max(...x.bm.keys());for(const p of x.am.keys())if(p<=bb)x.am.delete(p)}}}
 setInterval(()=>{WY&&WY.readyState===1&&WY.send('{"op":"ping"}');WU&&WU.readyState===1&&WU.send(JSON.stringify({op:'ping',ping:Math.floor(Date.now()/1e3)}))},20000);
 /* ---------- analysis ---------- */
@@ -228,7 +234,7 @@ const h0=Math.max(...vis.map(k=>k.h)),l0=Math.min(...vis.map(k=>k.l)),rg=(h0-l0)
 x.font='11px "Segoe UI",system-ui,sans-serif';x.lineWidth=1;
 const st=nice(hi-lo,9),dp=st<1?2:0;x.textAlign='left';
 for(let p=Math.ceil(lo/st)*st;p<hi;p+=st){const y=Math.round(Y(p))+.5;x.strokeStyle=GR;x.beginPath();x.moveTo(0,y);x.lineTo(W,y);x.stroke();x.fillStyle=AX;x.fillText(f(p,dp),W+8,y+4)}
-const ts=Math.max(1,Math.round(C.n/8)),tl=t=>{const d=new Date(t);return d.getHours()==0&&d.getMinutes()==0?d.toLocaleDateString([],{day:'numeric',month:'short'}):d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:false})};
+const ts=Math.max(1,Math.round(C.n/(W<420?5:8))),tl=t=>{const d=new Date(t);return d.getHours()==0&&d.getMinutes()==0?d.toLocaleDateString([],{day:'numeric',month:'short'}):d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:false})};
 for(let i=Math.ceil(i0/ts)*ts;i<C.i1;i+=ts){const X0=Math.round(X(i))+.5;x.strokeStyle=GR;x.beginPath();x.moveTo(X0,0);x.lineTo(X0,ph);x.stroke();x.fillStyle=AX;x.textAlign='center';x.fillText(tl(T(i)),X0,h-7)}x.textAlign='left';
 if(S.opt.liq)S.LQ.forEach(z=>{if(z.p<lo||z.p>hi)return;const y=Y(z.p),c=z.s==='L'?'255,200,87':'167,139,250';x.fillStyle=`rgba(${c},${.05+.1*z.w})`;x.fillRect(0,y-1,W,2);x.fillStyle=`rgba(${c},${.3+.6*z.w})`;const L=W*.22*z.w+8;x.fillRect(W-L,y-2,L,4)});
 if(S.opt.vp&&S.VP){const Q=S.VP,qm=Math.max(...Q.a);Q.a.forEach((v,i)=>{const p0=Q.l0+i*Q.bw,p1=p0+Q.bw;if(p1<lo||p0>hi)return;const y1=Y(p1),y0=Y(p0),mid=p0+Q.bw/2;x.fillStyle=mid>=Q.val&&mid<=Q.vah?'#7aa2ff40':'#7aa2ff1c';x.fillRect(0,y1,v/qm*W*.16,Math.max(1,y0-y1-1))});
@@ -236,7 +242,7 @@ if(Q.poc>lo&&Q.poc<hi){x.strokeStyle='#7aa2ff';x.setLineDash([4,3]);x.beginPath(
 if(S.opt.vol){const mv=Math.max(...vis.map(k=>k.v)),vh=ph*.2;vis.forEach((k,j)=>{const hh=k.v/mv*vh;x.fillStyle=k.c>=k.o?UP+'33':DN+'33';x.fillRect(X(a+j)-cw*.38,ph-hh,cw*.76,hh)})}
 if(S.opt.ema)[[21,'#ffc857'],[55,'#7aa2ff']].forEach(([n,c])=>{const e=ema(V.map(k=>k.c),n);x.strokeStyle=c;x.lineWidth=1.4;x.beginPath();for(let i=a;i<=b;i++)i==a?x.moveTo(X(i),Y(e[i])):x.lineTo(X(i),Y(e[i]));x.stroke();x.lineWidth=1});
 vis.forEach((k,j)=>{const xx=Math.round(X(a+j))+.5,c=k.c>=k.o?UP:DN;x.strokeStyle=x.fillStyle=c;x.beginPath();x.moveTo(xx,Y(k.h));x.lineTo(xx,Y(k.l));x.stroke();const bw=Math.max(1,Math.floor(cw*.72)),yt=Y(Math.max(k.o,k.c)),bh=Math.max(1,Math.abs(Y(k.o)-Y(k.c)));x.fillRect(Math.round(xx-bw/2),Math.round(yt),bw,Math.round(bh))});
-if(S.opt.sw){x.setLineDash([6,4]);[...S.SW.hi,...S.SW.lo].forEach(z=>{if(z.p<lo||z.p>hi)return;const y=Y(z.p);x.strokeStyle='#ffc857aa';x.beginPath();x.moveTo(0,y);x.lineTo(W,y);x.stroke();x.fillStyle='#ffc857';x.fillText((z.p>px?'BSL ':'SSL ')+(z.n>1?'×'+z.n+' ':'')+f(z.p),6,y-4)});x.setLineDash([])}
+if(S.opt.sw){x.setLineDash([6,4]);[...S.SW.hi,...S.SW.lo].forEach(z=>{if(z.p<lo||z.p>hi)return;const y=Y(z.p);x.strokeStyle='#ffc857aa';x.beginPath();x.moveTo(0,y);x.lineTo(W,y);x.stroke();x.fillStyle='#ffc857';if(y>60)x.fillText((z.p>px?'BSL ':'SSL ')+(z.n>1?'×'+z.n+' ':'')+f(z.p),6,y-4)});x.setLineDash([])}
 if(S.opt.wall){const q=[...S.bs.B||[],...S.bs.A||[]],mq=Math.max(...q.map(z=>z.q),1);q.forEach(z=>{if(z.p<lo||z.p>hi)return;x.fillStyle=z.p<px?UP+'cc':DN+'cc';x.fillRect(W-8-z.q/mq*60,Y(z.p)-3,z.q/mq*60,6)})}
 C.hl.forEach(p=>{if(p<lo||p>hi)return;const y=Y(p);x.strokeStyle='#ffc857';x.setLineDash([2,2]);x.beginPath();x.moveTo(0,y);x.lineTo(W,y);x.stroke();x.setLineDash([]);x.fillStyle='#ffc857';x.fillRect(W,y-8,AW,16);x.fillStyle='#000';x.fillText(f(p,1),W+6,y+4)});
 x.strokeStyle=LN;x.beginPath();x.moveTo(W+.5,0);x.lineTo(W+.5,h);x.moveTo(0,ph+.5);x.lineTo(w,ph+.5);x.stroke();
@@ -244,8 +250,8 @@ const last=V[N-1],lc=last.c>=last.o?UP:DN;if(px&&px>lo&&px<hi){const y=Y(px);x.s
 const rem=Math.max(0,last.t+TF-Date.now()),mm=rem/6e4|0,ss=(rem/1e3|0)%60,hh=mm/60|0;x.fillStyle=LN;x.fillRect(W,y+9,AW,15);x.fillStyle=lc;x.font='11px "Segoe UI",sans-serif';x.fillText(hh?`${hh}:${String(mm%60).padStart(2,'0')}:${String(ss).padStart(2,'0')}`:`${mm}:${String(ss).padStart(2,'0')}`,W+6,y+21)}
 let ik=null;if(C.mx>=0&&C.mx<W&&C.my<ph){const ci=Math.floor(i0+C.mx/cw);ik=V[clamp(ci,0,N-1)];x.strokeStyle=AX;x.setLineDash([3,3]);x.beginPath();x.moveTo(C.mx,0);x.lineTo(C.mx,ph);x.moveTo(0,C.my);x.lineTo(W,C.my);x.stroke();x.setLineDash([]);
 x.fillStyle=LN;x.fillRect(W,C.my-9,AW,18);x.fillStyle='#fff';x.fillText(f(hi-C.my/ph*(hi-lo),1),W+6,C.my+4);const tt=tl(T(ci));x.fillStyle=LN;x.fillRect(C.mx-26,ph+2,52,18);x.fillStyle='#fff';x.textAlign='center';x.fillText(tt,C.mx,h-7);x.textAlign='left'}
-const kk=ik||last,cc=kk.c>=kk.o?UP:DN;x.font='bold 12px "Segoe UI",sans-serif';x.fillStyle=TX;x.fillText(`BTCUSDT · ${S.tf.toUpperCase()} · ${S.src==='binance'?'Binance':'Bybit'}`,10,16);x.font=(w<520?'10.5px':'12px')+' ui-monospace,Consolas,monospace';x.fillStyle=cc;
-x.fillText(`O ${f(kk.o,w<520?0:1)} H ${f(kk.h,w<520?0:1)} L ${f(kk.l,w<520?0:1)} C ${f(kk.c,w<520?0:1)} ${(kk.c/kk.o-1>=0?'+':'')+((kk.c/kk.o-1)*100).toFixed(2)}%${w<520?'':'  Vol '+f(kk.v,0)}`,10,33);
+const kk=ik||last,cc=kk.c>=kk.o?UP:DN;x.font='bold 12px "Segoe UI",sans-serif';x.fillStyle=TX;x.fillText(`BTCUSDT · ${S.tf.toUpperCase()} · ${S.src==='binance'?'Binance':'Bybit'}`,10,16);x.font=(w<520?'10px':'12px')+' ui-monospace,Consolas,monospace';x.fillStyle=cc;
+x.fillText(`${w<520?'':'O '+f(kk.o,1)+' '}H${w<520?'':' '}${f(kk.h,w<520?0:1)} L${w<520?'':' '}${f(kk.l,w<520?0:1)} C${w<520?'':' '}${f(kk.c,w<520?0:1)} ${(kk.c/kk.o-1>=0?'+':'')+((kk.c/kk.o-1)*100).toFixed(2)}%${w<520?'':'  Vol '+f(kk.v,0)}`,10,33);
 x.font='11px "Segoe UI",sans-serif';let lx=10;[['EMA21','#ffc857',S.opt.ema],['EMA55','#7aa2ff',S.opt.ema],['Est. long liq','#ffc857',S.opt.liq],['Est. short liq','#a78bfa',S.opt.liq],['BSL/SSL','#ffc857',S.opt.sw]].forEach(([n,c,on])=>{if(!on||lx>w-120)return;x.fillStyle=c;x.fillRect(lx,43,8,8);x.fillStyle=AX;x.fillText(n,lx+12,51);lx+=x.measureText(n).width+26})}
 /* ---------- instant depth map ---------- */
 const hx=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));
@@ -315,8 +321,8 @@ const O=TFS.map(t=>[t,outlook(t)]),avg=Math.round(O.reduce((a,[,o])=>a+(o?o.s:0)
 $('#ol').innerHTML=O.map(([t,o])=>o?`<div class="card"><b style="font-size:16px">${t.toUpperCase()}</b><span class="${col(o.s)}" style="float:right;font-weight:700">${o.lab} (${o.s})</span><div class="bar"><i style="background:${o.s>=0?UP:DN};left:${o.s>=0?50:50+o.s/2}%;width:${Math.abs(o.s)/2}%"></i></div><ul>${o.R.map(r=>`<li class="${r[0]>=0?'up':'dn'}">${r[0]>=0?'▲':'▼'} <span style="color:var(--tx)">${r[1]}</span></li>`).join('')}</ul></div>`:'').join('');
 $('#rp').innerHTML=report(O,avg,al,cx);
 const sp=S.book?S.book.span:0,E=Object.entries(S.X);
-$('#xt').innerHTML=`<table class="t"><tr><th>Exchange</th><th>Status</th><th class="dsk">Bid depth</th><th class="dsk">Ask depth</th><th>Imbal.</th><th>CVD</th><th>Funding</th><th class="dsk">OI BTC</th></tr>`+E.map(([k,x])=>{const bd=x.b.filter(l=>l[0]>px-sp).reduce((a,l)=>a+l[1],0),ad=x.a.filter(l=>l[0]<px+sp).reduce((a,l)=>a+l[1],0),im=(bd-ad)/((bd+ad)||1),fu=S.fund[k];
-return`<tr><td><b>${x.n}</b></td><td class="${x.ok?'up':'dn'}">${x.on?(x.ok?'● live':'✕ '+x.err):'off'}</td><td class="up dsk">${f(bd,0)}</td><td class="dn dsk">${f(ad,0)}</td><td class="${col(im)}">${x.ok?(im*100).toFixed(0)+'%':'—'}</td><td class="${col(cx.X[k]||0)}">${cx.X[k]==null?'—':f(cx.X[k],1)}</td><td class="${col(-(fu||0))}">${fu==null?'—':(fu*100).toFixed(4)+'%'}</td><td class="dsk">${S.oiNow[k]?f(S.oiNow[k],0):'—'}</td></tr>`}).join('')+'</table>';
+$('#xt').innerHTML=`<table class="t"><tr><th>Exchange</th><th>Status</th><th class="dsk">Bids</th><th class="dsk">Asks</th><th>Imbal.</th><th>CVD</th><th>Funding</th><th class="dsk">OI BTC</th></tr>`+E.map(([k,x])=>{const bd=x.b.filter(l=>l[0]>px-sp).reduce((a,l)=>a+l[1],0),ad=x.a.filter(l=>l[0]<px+sp).reduce((a,l)=>a+l[1],0),im=(bd-ad)/((bd+ad)||1),fu=S.fund[k];
+return`<tr><td><b>${x.n}</b></td><td class="${x.ok?'up':x.err==='connecting'?'mu':'dn'}">${x.on?(x.ok?'● live':(x.err==='connecting'?'… connecting':'✕ '+x.err)):'off'}</td><td class="up dsk">${f(bd,0)}</td><td class="dn dsk">${f(ad,0)}</td><td class="${col(im)}">${x.ok?(im*100).toFixed(0)+'%':'—'}</td><td class="${col(cx.X[k]||0)}">${cx.X[k]==null?'—':f(cx.X[k],1)}</td><td class="${col(-(fu||0))}">${fu==null?'—':(fu*100).toFixed(4)+'%'}</td><td class="dsk">${S.oiNow[k]?f(S.oiNow[k],0):'—'}</td></tr>`}).join('')+'</table>';
 const Bs=S.bs,mw=Math.max(...[...Bs.B||[],...Bs.A||[]].map(z=>z.q),1),wr=(z,c,s)=>`<tr><td style="color:${c}">${s}</td><td>$${f(z.p)}</td><td style="color:${c}">${((z.p/px-1)*100).toFixed(3)}%</td><td class="bg"><i style="width:${z.q/mw*100}%;background:${c}"></i><span>${f(z.q,1)}</span></td><td class="dsk">$${m$(z.q*px)}</td></tr>`;
 $('#wl').innerHTML=`<table class="t wt"><tr><th>Side</th><th>Price</th><th>Dist</th><th>Size BTC</th><th class="dsk">Notional</th></tr>${(Bs.A||[]).slice().reverse().map(z=>wr(z,DN,'ASK')).join('')}${(Bs.B||[]).map(z=>wr(z,UP,'BID')).join('')||'<tr><td colspan=5 class="mu">no walls</td></tr>'}</table><div class="bar"><i style="left:0;width:${50+Bs.im*50}%;background:${UP}"></i><i style="right:0;width:${50-Bs.im*50}%;background:${DN}"></i></div><small>Bids ${f(Bs.tb||0,0)} BTC · Asks ${f(Bs.ta||0,0)} BTC · imbalance ${(Bs.im*100).toFixed(1)}%</small>`;
 const F=Object.values(S.fund),fu=F.length?F.reduce((a,b)=>a+b,0)/F.length:0,oi=Object.values(S.oiNow).reduce((a,b)=>a+b,0);
@@ -326,7 +332,7 @@ const blk=(ti,c,a)=>`<div><small class="sh">${ti}</small>${a.map(z=>`<div class=
 $('#lv').innerHTML='<div class="lvg">'+blk('Buy-side liquidity above (BSL)','dn',S.SW.hi)+blk('Est. short-liq clusters above','',top('S'))+blk('Est. long-liq clusters below','',top('L'))+blk('Sell-side liquidity below (SSL)','up',S.SW.lo)+'</div>';tick(avg);const fk=S.fgT+'|'+(S.fgErr||'');if(S.fgK!==fk){S.fgK=fk;$('#fg').innerHTML=fgHTML()}if(S.book)document.body.classList.remove('loading')}
 /* ---------- UI: header, layout, drag/resize ---------- */
 const mk=(t,fn,on,p)=>{const b=document.createElement('button');b.textContent=t;if(on)b.className='on';b.onclick=()=>fn(b);(p||$('#ctb')).append(b);return b};
-function chips(){$('#ex').innerHTML='';Object.entries(S.X).forEach(([k,x])=>{const b=document.createElement('span');b.className='pill '+(x.on?(x.ok?'pos':'bad'):'');b.textContent=(x.on?'● ':'○ ')+x.n;b.title=x.err||(x.ok?'live':'');b.onclick=()=>{x.on=x.on?0:1;if(!x.on)x.ok=0;merge();chips()};$('#ex').append(b)})}
+function chips(){$('#ex').innerHTML='';Object.entries(S.X).forEach(([k,x])=>{const b=document.createElement('span');b.className='pill '+(x.on?(x.ok?'pos':x.err==='connecting'?'':'bad'):'');b.textContent=(x.on?'● ':'○ ')+x.n;b.title=x.err||(x.ok?'live':'');b.onclick=()=>{x.on=x.on?0:1;if(!x.on)x.ok=0;merge();chips()};$('#ex').append(b)})}
 const DEF={rp:{s:12,h:0},ch:{s:8,h:560},dm:{s:4,h:560},hm:{s:12,h:380},ol:{s:12,h:0},xt:{s:6,h:0},wl:{s:6,h:0},pr:{s:4,h:0},fg:{s:4,h:0},lv:{s:4,h:0}};
 const NAMES={rp:'Report',ch:'Chart',dm:'Ladder',hm:'Depth Map',ol:'Outlook',xt:'Exchanges',wl:'Walls',pr:'Pressure',fg:'Fear & Greed',lv:'Levels'};
 let LY={};try{LY=JSON.parse(localStorage.lr4||'{}')}catch(e){}LY.L=LY.L||{};LY.hid=LY.hid||[];
